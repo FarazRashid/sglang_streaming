@@ -1,0 +1,104 @@
+{{- if and (eq .Values.deploymentMode "single") .Values.single.enabled }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "sglang.fullname" . }}
+  labels:
+    {{- include "sglang.labels" . | nindent 4 }}
+spec:
+  replicas: {{ .Values.single.replicaCount }}
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      {{- include "sglang.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      {{- with .Values.podAnnotations }}
+      annotations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      labels:
+        {{- include "sglang.selectorLabels" . | nindent 8 }}
+        {{- with .Values.podLabels }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+        model: {{ .Values.global.model.path | replace "/" "-" | lower }}
+        engine: sglang
+    spec:
+      {{- if .Values.runtimeClass.enabled }}
+      runtimeClassName: {{ .Values.runtimeClass.name }}
+      {{- end }}
+      serviceAccountName: {{ include "sglang.serviceAccountName" . }}
+      dnsPolicy: {{ include "sglang.dnsPolicy" . }}
+      {{- if .Values.networking.hostNetwork }}
+      hostNetwork: true
+      {{- end }}
+      {{- if .Values.networking.hostIPC }}
+      hostIPC: true
+      {{- end }}
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      containers:
+        - name: sglang
+          image: "{{ .Values.global.image.repository }}:{{ .Values.global.image.tag }}"
+          imagePullPolicy: {{ .Values.global.image.pullPolicy }}
+          ports:
+            - name: http
+              containerPort: {{ .Values.single.server.port }}
+              protocol: TCP
+            {{- if .Values.single.server.enableMetrics }}
+            - name: metrics
+              containerPort: {{ .Values.single.server.metricsPort }}
+              protocol: TCP
+            {{- end }}
+          command: ["python3", "-m", "sglang.launch_server"]
+          args:
+            - "--model-path"
+            - "{{ include "sglang.modelPath" . }}"
+            - "--host"
+            - "{{ .Values.single.server.host }}"
+            - "--port"
+            - "{{ .Values.single.server.port }}"
+            {{- if .Values.single.server.enableMetrics }}
+            - "--enable-metrics"
+            {{- end }}
+            {{- if .Values.global.model.trustRemoteCode }}
+            - "--trust-remote-code"
+            {{- end }}
+          env:
+            {{- include "sglang.commonEnv" . | nindent 12 }}
+          resources:
+            limits:
+              nvidia.com/gpu: {{ .Values.global.resources.gpu }}
+            requests:
+              memory: {{ .Values.global.resources.memory }}
+          volumeMounts:
+            {{- include "sglang.commonVolumeMounts" . | nindent 12 }}
+          {{- if .Values.single.livenessProbe.enabled }}
+          livenessProbe:
+            {{- toYaml .Values.single.livenessProbe.httpGet | nindent 12 }}
+            initialDelaySeconds: {{ .Values.single.livenessProbe.initialDelaySeconds }}
+            periodSeconds: {{ .Values.single.livenessProbe.periodSeconds }}
+          {{- end }}
+          {{- if .Values.single.readinessProbe.enabled }}
+          readinessProbe:
+            {{- toYaml .Values.single.readinessProbe.httpGet | nindent 12 }}
+            initialDelaySeconds: {{ .Values.single.readinessProbe.initialDelaySeconds }}
+            periodSeconds: {{ .Values.single.readinessProbe.periodSeconds }}
+          {{- end }}
+          securityContext:
+            {{- include "sglang.securityContext" . | nindent 12 }}
+      volumes:
+        {{- include "sglang.commonVolumes" . | nindent 8 }}
+{{- end }}

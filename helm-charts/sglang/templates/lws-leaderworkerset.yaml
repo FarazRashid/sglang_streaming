@@ -1,0 +1,176 @@
+{{- if and (eq .Values.deploymentMode "lws") .Values.lws.enabled }}
+apiVersion: leaderworkerset.x-k8s.io/v1
+kind: LeaderWorkerSet
+metadata:
+  name: {{ include "sglang.fullname" . }}-lws
+  labels:
+    {{- include "sglang.labels" . | nindent 4 }}
+spec:
+  replicas: {{ .Values.lws.replicas }}
+  leaderWorkerTemplate:
+    size: {{ .Values.lws.groupSize }}
+    restartPolicy: {{ .Values.lws.restartPolicy }}
+    leaderTemplate:
+      metadata:
+        labels:
+          {{- include "sglang.selectorLabels" . | nindent 10 }}
+          role: leader
+          {{- with .Values.podLabels }}
+          {{- toYaml . | nindent 10 }}
+          {{- end }}
+        {{- with .Values.podAnnotations }}
+        annotations:
+          {{- toYaml . | nindent 10 }}
+        {{- end }}
+      spec:
+        serviceAccountName: {{ include "sglang.serviceAccountName" . }}
+        dnsPolicy: {{ include "sglang.dnsPolicy" . }}
+        {{- if .Values.networking.hostNetwork }}
+        hostNetwork: true
+        {{- end }}
+        {{- if .Values.networking.hostIPC }}
+        hostIPC: true
+        {{- end }}
+        {{- with .Values.nodeSelector }}
+        nodeSelector:
+          {{- toYaml . | nindent 10 }}
+        {{- end }}
+        {{- with .Values.affinity }}
+        affinity:
+          {{- toYaml . | nindent 10 }}
+        {{- end }}
+        {{- with .Values.tolerations }}
+        tolerations:
+          {{- toYaml . | nindent 10 }}
+        {{- end }}
+        containers:
+          - name: sglang-leader
+            image: "{{ .Values.global.image.repository }}:{{ .Values.global.image.tag }}"
+            securityContext:
+              {{- include "sglang.securityContext" . | nindent 14 }}
+            env:
+              {{- if .Values.rdma.enabled }}
+              - name: NCCL_IB_GID_INDEX
+                value: {{ .Values.lws.nccl.ibGidIndex | quote }}
+              {{- end }}
+              - name: NCCL_DEBUG
+                value: {{ .Values.lws.nccl.debug | quote }}
+              {{- include "sglang.commonEnv" . | nindent 14 }}
+            command:
+              - python3
+              - -m
+              - sglang.launch_server
+              - --model-path
+              - "{{ include "sglang.modelPath" . }}"
+              - --mem-fraction-static
+              - {{ .Values.lws.server.memFractionStatic | quote }}
+              - --torch-compile-max-bs
+              - {{ .Values.lws.server.torchCompileMaxBs | quote }}
+              - --max-running-requests
+              - {{ .Values.lws.server.maxRunningRequests | quote }}
+              - --tp
+              - {{ .Values.lws.tensorParallelSize | quote }}
+              - --dist-init-addr
+              - "$(LWS_LEADER_ADDRESS):20000"
+              - --nnodes
+              - "$(LWS_GROUP_SIZE)"
+              - --node-rank
+              - "$(LWS_WORKER_INDEX)"
+              {{- if .Values.global.model.trustRemoteCode }}
+              - --trust-remote-code
+              {{- end }}
+              - --host
+              - {{ .Values.lws.server.host | quote }}
+              - --port
+              - {{ .Values.lws.server.port | quote }}
+            resources:
+              limits:
+                nvidia.com/gpu: {{ .Values.global.resources.gpu | quote }}
+            ports:
+              - containerPort: {{ .Values.lws.server.port }}
+            readinessProbe:
+              tcpSocket:
+                port: {{ .Values.lws.server.port }}
+              initialDelaySeconds: 15
+              periodSeconds: 10
+            volumeMounts:
+              {{- include "sglang.commonVolumeMounts" . | nindent 14 }}
+        volumes:
+          {{- include "sglang.commonVolumes" . | nindent 10 }}
+    workerTemplate:
+      metadata:
+        labels:
+          {{- include "sglang.selectorLabels" . | nindent 10 }}
+          role: worker
+          {{- with .Values.podLabels }}
+          {{- toYaml . | nindent 10 }}
+          {{- end }}
+        {{- with .Values.podAnnotations }}
+        annotations:
+          {{- toYaml . | nindent 10 }}
+        {{- end }}
+      spec:
+        serviceAccountName: {{ include "sglang.serviceAccountName" . }}
+        dnsPolicy: {{ include "sglang.dnsPolicy" . }}
+        {{- if .Values.networking.hostNetwork }}
+        hostNetwork: true
+        {{- end }}
+        {{- if .Values.networking.hostIPC }}
+        hostIPC: true
+        {{- end }}
+        {{- with .Values.nodeSelector }}
+        nodeSelector:
+          {{- toYaml . | nindent 10 }}
+        {{- end }}
+        {{- with .Values.affinity }}
+        affinity:
+          {{- toYaml . | nindent 10 }}
+        {{- end }}
+        {{- with .Values.tolerations }}
+        tolerations:
+          {{- toYaml . | nindent 10 }}
+        {{- end }}
+        containers:
+          - name: sglang-worker
+            image: "{{ .Values.global.image.repository }}:{{ .Values.global.image.tag }}"
+            securityContext:
+              {{- include "sglang.securityContext" . | nindent 14 }}
+            env:
+              {{- if .Values.rdma.enabled }}
+              - name: NCCL_IB_GID_INDEX
+                value: {{ .Values.lws.nccl.ibGidIndex | quote }}
+              {{- end }}
+              - name: NCCL_DEBUG
+                value: {{ .Values.lws.nccl.debug | quote }}
+              {{- include "sglang.commonEnv" . | nindent 14 }}
+            command:
+              - python3
+              - -m
+              - sglang.launch_server
+              - --model-path
+              - "{{ include "sglang.modelPath" . }}"
+              - --mem-fraction-static
+              - {{ .Values.lws.server.memFractionStatic | quote }}
+              - --torch-compile-max-bs
+              - {{ .Values.lws.server.torchCompileMaxBs | quote }}
+              - --max-running-requests
+              - {{ .Values.lws.server.maxRunningRequests | quote }}
+              - --tp
+              - {{ .Values.lws.tensorParallelSize | quote }}
+              - --dist-init-addr
+              - "$(LWS_LEADER_ADDRESS):20000"
+              - --nnodes
+              - "$(LWS_GROUP_SIZE)"
+              - --node-rank
+              - "$(LWS_WORKER_INDEX)"
+              {{- if .Values.global.model.trustRemoteCode }}
+              - --trust-remote-code
+              {{- end }}
+            resources:
+              limits:
+                nvidia.com/gpu: {{ .Values.global.resources.gpu | quote }}
+            volumeMounts:
+              {{- include "sglang.commonVolumeMounts" . | nindent 14 }}
+        volumes:
+          {{- include "sglang.commonVolumes" . | nindent 10 }}
+{{- end }}

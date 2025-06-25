@@ -1,0 +1,17 @@
+{{- if eq .Values.storage.model.type "pvc" }}
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: {{ .Values.storage.model.pvc.name }}
+  labels:
+    {{- include "sglang.labels" . | nindent 4 }}
+spec:
+  accessModes:
+    - {{ .Values.storage.model.pvc.accessMode }}
+  resources:
+    requests:
+      storage: {{ .Values.storage.model.pvc.size }}
+  {{- if .Values.storage.model.pvc.storageClass }}
+  storageClassName: {{ .Values.storage.model.pvc.storageClass }}
+  {{- end }}
+{{- end }}

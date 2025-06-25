@@ -1,0 +1,97 @@
+{{- if and (eq .Values.deploymentMode "distributed") .Values.distributed.enabled }}
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: {{ include "sglang.fullname" . }}-distributed
+  labels:
+    {{- include "sglang.labels" . | nindent 4 }}
+spec:
+  replicas: {{ .Values.distributed.nodes }}
+  selector:
+    matchLabels:
+      {{- include "sglang.selectorLabels" . | nindent 6 }}
+      component: distributed
+  serviceName: ""
+  template:
+    metadata:
+      {{- with .Values.podAnnotations }}
+      annotations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      labels:
+        {{- include "sglang.selectorLabels" . | nindent 8 }}
+        {{- with .Values.podLabels }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+        component: distributed
+    spec:
+      serviceAccountName: {{ include "sglang.serviceAccountName" . }}
+      dnsPolicy: {{ include "sglang.dnsPolicy" . }}
+      {{- if .Values.networking.hostNetwork }}
+      hostNetwork: true
+      {{- end }}
+      {{- if .Values.networking.hostIPC }}
+      hostIPC: true
+      {{- end }}
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      containers:
+      - name: sglang-container
+        image: "{{ .Values.global.image.repository }}:{{ .Values.global.image.tag }}"
+        imagePullPolicy: {{ .Values.global.image.pullPolicy }}
+        command:
+        - /bin/bash
+        - -c
+        args:
+        - |
+          python3 -m sglang.launch_server \
+          --model {{ include "sglang.modelPath" . }} \
+          --dist-init-addr {{ include "sglang.fullname" . }}-master:{{ .Values.distributed.distInitPort }} \
+          --tensor-parallel-size {{ .Values.distributed.tensorParallelSize }} \
+          --nnodes {{ .Values.distributed.nodes }} \
+          --node-rank $POD_INDEX \
+          {{- if .Values.global.model.trustRemoteCode }}
+          --trust-remote-code \
+          {{- end }}
+          --host 0.0.0.0 \
+          --port {{ .Values.distributed.service.servingPort }} \
+          --enable-metrics \
+          {{- if .Values.distributed.enableEpMoe }}
+          --enable-ep-moe \
+          --expert-parallel-size {{ .Values.distributed.expertParallelSize }}
+          {{- end }}
+        env:
+        - name: POD_INDEX
+          valueFrom:
+            fieldRef:
+              apiVersion: v1
+              fieldPath: metadata.labels['apps.kubernetes.io/pod-index']
+        - name: NCCL_DEBUG
+          value: {{ .Values.distributed.nccl.debug | quote }}
+        {{- if .Values.rdma.enabled }}
+        - name: NCCL_IB_GID_INDEX
+          value: {{ .Values.distributed.nccl.ibGidIndex | quote }}
+        {{- end }}
+        {{- include "sglang.commonEnv" . | nindent 8 }}
+        resources:
+          limits:
+            nvidia.com/gpu: {{ .Values.global.resources.gpu | quote }}
+          requests:
+            memory: {{ .Values.global.resources.memory }}
+        volumeMounts:
+          {{- include "sglang.commonVolumeMounts" . | nindent 10 }}
+        securityContext:
+          {{- include "sglang.securityContext" . | nindent 10 }}
+      volumes:
+        {{- include "sglang.commonVolumes" . | nindent 8 }}
+{{- end }}

@@ -1,0 +1,196 @@
+# Default values for sglang.
+# This is a YAML-formatted file.
+# Declare variables to be passed into your templates.
+
+# Deployment mode: "single" for single-node, "distributed" for multi-node, "lws" for LeaderWorkerSet
+deploymentMode: "single"
+
+# Global settings
+global:
+  image:
+    repository: lmsysorg/sglang
+    tag: latest
+    pullPolicy: Always
+  
+  # Model configuration
+  model:
+    path: "meta-llama/Llama-3.1-8B-Instruct"
+    # For local models, use hostPath mount
+    # path: "/data/models/your-model"
+    trustRemoteCode: true
+    
+  # HuggingFace token for private models
+  huggingface:
+    token: ""
+    
+  # Resource configuration
+  resources:
+    gpu: 1
+    memory: "10Gi"
+    
+# Single node deployment configuration
+single:
+  enabled: true
+  replicaCount: 1
+  
+  service:
+    type: LoadBalancer
+    port: 30000
+    targetPort: 30000
+    annotations: {}
+    
+  # Server configuration
+  server:
+    host: "0.0.0.0"
+    port: 30000
+    enableMetrics: true
+    metricsPort: 8080
+    
+  # Probes
+  livenessProbe:
+    enabled: true
+    httpGet:
+      path: /health
+      port: 30000
+    initialDelaySeconds: 30
+    periodSeconds: 10
+    
+  readinessProbe:
+    enabled: true
+    httpGet:
+      path: /health
+      port: 30000
+    initialDelaySeconds: 15
+    periodSeconds: 10
+
+# Distributed deployment configuration (StatefulSet)
+distributed:
+  enabled: false
+  nodes: 2
+  tensorParallelSize: 16
+  expertParallelSize: 16  # For MoE models
+  enableEpMoe: false      # Enable for MoE models
+  
+  # Distribution settings
+  distInitPort: 5000
+  
+  # NCCL configuration
+  nccl:
+    debug: "INFO"
+    ibGidIndex: "3"
+    
+  # Service configuration
+  service:
+    type: NodePort
+    servingPort: 8000
+    metricsPort: 8080
+    distPort: 5000
+
+# LeaderWorkerSet deployment configuration
+lws:
+  enabled: false
+  replicas: 1
+  groupSize: 2
+  
+  # LWS specific configuration
+  restartPolicy: "RecreateGroupOnPodRestart"
+  
+  # Tensor parallelism configuration
+  tensorParallelSize: 16
+  
+  # Server configuration
+  server:
+    host: "0.0.0.0"
+    port: 40000
+    memFractionStatic: "0.93"
+    torchCompileMaxBs: "8"
+    maxRunningRequests: "20"
+    
+  # NCCL configuration
+  nccl:
+    ibGidIndex: "3"
+    debug: "TRACE"  # Can be INFO, WARN, or TRACE
+    
+  # Service configuration
+  service:
+    type: LoadBalancer
+    port: 40000
+    targetPort: 40000
+
+# Storage configuration
+storage:
+  # Shared memory configuration
+  shm:
+    enabled: true
+    size: "10Gi"
+    
+  # Model storage
+  model:
+    # Options: "hostPath", "pvc", "huggingface"
+    type: "huggingface"
+    
+    # For hostPath
+    hostPath:
+      path: "/data/models"
+      type: "DirectoryOrCreate"
+      
+    # For PVC
+    pvc:
+      name: "model-pvc"
+      size: "100Gi"
+      storageClass: "fast-ssd"
+      accessMode: "ReadOnlyMany"
+      
+  # HuggingFace cache
+  huggingfaceCache:
+    enabled: true
+    hostPath: "/root/.cache/huggingface"
+
+# RDMA/InfiniBand configuration
+rdma:
+  enabled: false
+  # Mount InfiniBand devices
+  mountInfiniBand: true
+  infinibandPath: "/dev/infiniband"
+
+# Security configuration
+security:
+  # Enable privileged mode (required for RDMA)
+  privileged: false
+  
+  # Security context
+  securityContext:
+    runAsUser: 0
+    runAsGroup: 0
+    fsGroup: 0
+
+# Networking configuration
+networking:
+  # Use host networking (required for RDMA)
+  hostNetwork: false
+  hostIPC: false
+  dnsPolicy: "ClusterFirst"  # Change to "ClusterFirstWithHostNet" when hostNetwork is true
+
+# Node scheduling
+nodeSelector: {}
+
+tolerations: []
+
+affinity: {}
+
+# Pod annotations
+podAnnotations: {}
+
+# Pod labels
+podLabels: {}
+
+# Service account
+serviceAccount:
+  create: true
+  annotations: {}
+  name: ""
+
+# Runtime class (for GPU support)
+runtimeClass:
+  enabled: false
+  name: "nvidia"

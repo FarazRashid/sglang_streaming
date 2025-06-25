@@ -1,0 +1,79 @@
+# Distributed deployment with RDMA support
+# Example: helm install sglang-distributed ./helm-charts/sglang -f ./helm-charts/sglang/examples/distributed-rdma.yaml
+
+deploymentMode: "distributed"
+
+global:
+  image:
+    repository: lmsysorg/sglang
+    tag: latest
+    pullPolicy: Always
+  
+  model:
+    path: "/data/models/deepseek-r1"  # Local model path
+    trustRemoteCode: true
+    
+  resources:
+    gpu: 8
+    memory: "64Gi"
+
+distributed:
+  enabled: true
+  nodes: 2
+  tensorParallelSize: 16
+  expertParallelSize: 16
+  enableEpMoe: true  # Enable for MoE models
+  
+  distInitPort: 5000
+  
+  nccl:
+    debug: "INFO"
+    ibGidIndex: "3"
+    
+  service:
+    type: NodePort
+    servingPort: 8000
+    metricsPort: 8080
+    distPort: 5000
+
+storage:
+  shm:
+    enabled: true
+    size: "32Gi"
+    
+  model:
+    type: "hostPath"
+    hostPath:
+      path: "/data/models/deepseek-r1"
+      type: "DirectoryOrCreate"
+    
+  huggingfaceCache:
+    enabled: true
+    hostPath: "/root/.cache/huggingface"
+
+# RDMA/InfiniBand configuration
+rdma:
+  enabled: true
+  mountInfiniBand: true
+  infinibandPath: "/dev/infiniband"
+
+# Security configuration (required for RDMA)
+security:
+  privileged: true
+
+# Networking configuration (required for RDMA)
+networking:
+  hostNetwork: true
+  hostIPC: true
+
+# Node scheduling for GPU nodes
+nodeSelector:
+  accelerator: nvidia-tesla-v100  # Adjust based on your GPU type
+
+tolerations:
+  - key: nvidia.com/gpu
+    operator: Exists
+    effect: NoSchedule
+
+serviceAccount:
+  create: true
