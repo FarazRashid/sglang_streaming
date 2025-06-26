@@ -1,0 +1,27 @@
+{{- if and (eq .Values.deploymentMode "single") .Values.single.enabled }}
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "sglang.fullname" . }}
+  labels:
+    {{- include "sglang.labels" . | nindent 4 }}
+  {{- with .Values.single.service.annotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+spec:
+  type: {{ .Values.single.service.type }}
+  ports:
+    - port: {{ .Values.single.service.port }}
+      targetPort: {{ .Values.single.service.targetPort }}
+      protocol: TCP
+      name: http
+    {{- if .Values.single.server.enableMetrics }}
+    - port: {{ .Values.single.server.metricsPort }}
+      targetPort: {{ .Values.single.server.metricsPort }}
+      protocol: TCP
+      name: metrics
+    {{- end }}
+  selector:
+    {{- include "sglang.selectorLabels" . | nindent 4 }}
+{{- end }}

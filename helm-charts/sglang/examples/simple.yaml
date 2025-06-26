@@ -1,0 +1,50 @@
+# Simple single node deployment for testing
+# Example: helm install sglang-simple ./helm-charts/sglang -f ./helm-charts/sglang/examples/simple.yaml
+
+deploymentMode: "single"
+
+global:
+  image:
+    repository: lmsysorg/sglang
+    tag: latest
+    pullPolicy: IfNotPresent
+  
+  model:
+    path: "microsoft/DialoGPT-medium"
+    trustRemoteCode: true
+    
+  huggingface:
+    token: ""
+    
+  resources:
+    gpu: 1
+    memory: "8Gi"
+
+single:
+  enabled: true
+  replicaCount: 1
+  
+  service:
+    type: ClusterIP
+    port: 8000
+    targetPort: 8000
+    
+  server:
+    host: "0.0.0.0"
+    port: 8000
+    enableMetrics: false
+
+storage:
+  shm:
+    enabled: true
+    size: "4Gi"
+    
+  model:
+    type: "huggingface"
+    
+  huggingfaceCache:
+    enabled: true
+    hostPath: "/tmp/huggingface-cache"
+
+serviceAccount:
+  create: true

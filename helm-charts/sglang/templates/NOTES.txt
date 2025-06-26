@@ -1,0 +1,112 @@
+{{- if eq .Values.deploymentMode "single" }}
+1. Get the application URL by running these commands:
+{{- if contains "NodePort" .Values.single.service.type }}
+  export NODE_PORT=$(kubectl get --namespace {{ .Release.Namespace }} -o jsonpath="{.spec.ports[0].nodePort}" services {{ include "sglang.fullname" . }})
+  export NODE_IP=$(kubectl get nodes --namespace {{ .Release.Namespace }} -o jsonpath="{.items[0].status.addresses[0].address}")
+  echo http://$NODE_IP:$NODE_PORT
+{{- else if contains "LoadBalancer" .Values.single.service.type }}
+     NOTE: It may take a few minutes for the LoadBalancer IP to be available.
+           You can watch the status of by running 'kubectl get --namespace {{ .Release.Namespace }} svc -w {{ include "sglang.fullname" . }}'
+  export SERVICE_IP=$(kubectl get svc --namespace {{ .Release.Namespace }} {{ include "sglang.fullname" . }} --template "{{"{{ range (index .status.loadBalancer.ingress 0) }}{{.}}{{ end }}"}}")
+  echo http://$SERVICE_IP:{{ .Values.single.service.port }}
+{{- else if contains "ClusterIP" .Values.single.service.type }}
+  export POD_NAME=$(kubectl get pods --namespace {{ .Release.Namespace }} -l "app.kubernetes.io/name={{ include "sglang.name" . }},app.kubernetes.io/instance={{ .Release.Name }}" -o jsonpath="{.items[0].metadata.name}")
+  export CONTAINER_PORT=$(kubectl get pod --namespace {{ .Release.Namespace }} $POD_NAME -o jsonpath="{.spec.containers[0].ports[0].containerPort}")
+  echo "Visit http://127.0.0.1:8080 to use your application"
+  kubectl --namespace {{ .Release.Namespace }} port-forward $POD_NAME 8080:$CONTAINER_PORT
+{{- end }}
+
+2. Check the deployment status:
+  kubectl get pods --namespace {{ .Release.Namespace }} -l "app.kubernetes.io/name={{ include "sglang.name" . }}"
+
+3. View logs:
+  kubectl logs --namespace {{ .Release.Namespace }} -f deployment/{{ include "sglang.fullname" . }}
+
+4. Test the health endpoint:
+  curl http://<SERVICE_IP>:{{ .Values.single.service.port }}/health
+
+5. Test model inference:
+  curl -X POST http://<SERVICE_IP>:{{ .Values.single.service.port }}/generate \
+    -H "Content-Type: application/json" \
+    -d '{"text": "Hello, how are you?", "sampling_params": {"temperature": 0.7, "max_new_tokens": 100}}'
+
+{{- else if eq .Values.deploymentMode "distributed" }}
+1. Check the distributed deployment status:
+  kubectl get pods --namespace {{ .Release.Namespace }} -l "component=distributed"
+
+2. Wait for all pods to be ready:
+  kubectl wait --for=condition=ready pod --namespace {{ .Release.Namespace }} -l "component=distributed" --timeout=600s
+
+3. View master pod logs:
+  kubectl logs --namespace {{ .Release.Namespace }} -f {{ include "sglang.fullname" . }}-distributed-0
+
+4. Get the service URL:
+{{- if contains "NodePort" .Values.distributed.service.type }}
+  export NODE_PORT=$(kubectl get --namespace {{ .Release.Namespace }} -o jsonpath="{.spec.ports[0].nodePort}" services {{ include "sglang.fullname" . }}-serving)
+  export NODE_IP=$(kubectl get nodes --namespace {{ .Release.Namespace }} -o jsonpath="{.items[0].status.addresses[0].address}")
+  echo http://$NODE_IP:$NODE_PORT
+{{- else }}
+  kubectl --namespace {{ .Release.Namespace }} port-forward svc/{{ include "sglang.fullname" . }}-serving 8000:{{ .Values.distributed.service.servingPort }}
+  echo "Visit http://127.0.0.1:8000 to use your application"
+{{- end }}
+
+5. Test the service:
+  curl http://<SERVICE_IP>:{{ .Values.distributed.service.servingPort }}/health
+
+{{- else if eq .Values.deploymentMode "lws" }}
+1. Check the LeaderWorkerSet deployment status:
+  kubectl get leaderworkerset --namespace {{ .Release.Namespace }}
+
+2. View leader pod status:
+  kubectl get pods --namespace {{ .Release.Namespace }} -l "role=leader"
+
+3. Wait for leader to be ready:
+  kubectl wait --for=condition=ready pod --namespace {{ .Release.Namespace }} -l "role=leader" --timeout=600s
+
+4. View leader logs:
+  kubectl logs --namespace {{ .Release.Namespace }} -f -l "role=leader"
+
+5. Get the service URL:
+{{- if contains "LoadBalancer" .Values.lws.service.type }}
+  export SERVICE_IP=$(kubectl get svc --namespace {{ .Release.Namespace }} {{ include "sglang.fullname" . }}-lws-leader --template "{{"{{ range (index .status.loadBalancer.ingress 0) }}{{.}}{{ end }}"}}")
+  echo http://$SERVICE_IP:{{ .Values.lws.service.port }}
+{{- else }}
+  kubectl --namespace {{ .Release.Namespace }} port-forward svc/{{ include "sglang.fullname" . }}-lws-leader {{ .Values.lws.service.port }}:{{ .Values.lws.service.targetPort }}
+  echo "Visit http://127.0.0.1:{{ .Values.lws.service.port }} to use your application"
+{{- end }}
+
+6. Test the service:
+  curl http://<SERVICE_IP>:{{ .Values.lws.service.port }}/health
+{{- end }}
+
+{{- if .Values.global.huggingface.token }}
+Note: Using HuggingFace token for model access.
+{{- else }}
+Note: No HuggingFace token provided. Some models may not be accessible.
+{{- end }}
+
+{{- if .Values.rdma.enabled }}
+RDMA Configuration:
+- RDMA support is enabled
+- Privileged mode is required
+- Host networking is enabled
+- InfiniBand devices are mounted at {{ .Values.rdma.infinibandPath }}
+{{- end }}
+
+{{- if eq .Values.storage.model.type "hostPath" }}
+Model Storage:
+- Using local model at: {{ .Values.storage.model.hostPath.path }}
+- Ensure the model is available on all nodes
+{{- else if eq .Values.storage.model.type "pvc" }}
+Model Storage:
+- Using PVC: {{ .Values.storage.model.pvc.name }}
+- Size: {{ .Values.storage.model.pvc.size }}
+{{- else }}
+Model Storage:
+- Using HuggingFace model: {{ .Values.global.model.path }}
+{{- end }}
+
+For troubleshooting and more information, visit:
+- Helm Chart README: ./helm-charts/sglang/README.md
+- Deployment Guide: ./helm-charts/DEPLOYMENT_GUIDE.md
+- SGLang Documentation: https://docs.sglang.ai/

@@ -1,0 +1,19 @@
+{{- if and (eq .Values.deploymentMode "lws") .Values.lws.enabled }}
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "sglang.fullname" . }}-lws-leader
+  labels:
+    {{- include "sglang.labels" . | nindent 4 }}
+    component: lws-leader
+spec:
+  type: {{ .Values.lws.service.type }}
+  selector:
+    leaderworkerset.sigs.k8s.io/name: {{ include "sglang.fullname" . }}-lws
+    role: leader
+  ports:
+    - protocol: TCP
+      port: {{ .Values.lws.service.port }}
+      targetPort: {{ .Values.lws.service.targetPort }}
+      name: http
+{{- end }}

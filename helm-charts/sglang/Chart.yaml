@@ -1,0 +1,19 @@
+apiVersion: v2
+name: sglang
+description: A Helm chart for deploying SGLang on Kubernetes
+type: application
+version: 0.1.0
+appVersion: "0.6.0"
+home: https://github.com/sgl-project/sglang
+sources:
+  - https://github.com/sgl-project/sglang
+keywords:
+  - llm
+  - inference
+  - ai
+  - machine-learning
+maintainers:
+  - name: SGLang Team
+    email: team@sglang.ai
+annotations:
+  category: Machine Learning

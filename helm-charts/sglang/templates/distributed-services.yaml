@@ -1,0 +1,44 @@
+{{- if and (eq .Values.deploymentMode "distributed") .Values.distributed.enabled }}
+---
+# Master service for distributed communication
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "sglang.fullname" . }}-master
+  labels:
+    {{- include "sglang.labels" . | nindent 4 }}
+    component: master
+spec:
+  type: ClusterIP
+  selector:
+    {{- include "sglang.selectorLabels" . | nindent 4 }}
+    component: distributed
+    apps.kubernetes.io/pod-index: "0"
+  ports:
+  - name: dist-port
+    port: {{ .Values.distributed.distInitPort }}
+    targetPort: {{ .Values.distributed.distInitPort }}
+
+---
+# Serving service (exposed through master pod)
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "sglang.fullname" . }}-serving
+  labels:
+    {{- include "sglang.labels" . | nindent 4 }}
+    component: serving
+spec:
+  type: {{ .Values.distributed.service.type }}
+  selector:
+    {{- include "sglang.selectorLabels" . | nindent 4 }}
+    component: distributed
+    apps.kubernetes.io/pod-index: "0"
+  ports:
+  - name: serving
+    port: {{ .Values.distributed.service.servingPort }}
+    targetPort: {{ .Values.distributed.service.servingPort }}
+  - name: metrics
+    port: {{ .Values.distributed.service.metricsPort }}
+    targetPort: {{ .Values.distributed.service.metricsPort }}
+{{- end }}
