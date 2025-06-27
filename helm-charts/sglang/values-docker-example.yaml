@@ -14,7 +14,7 @@ global:
     trustRemoteCode: true
     
   huggingface:
-    token: "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"
+    token: ""
     
   resources:
     gpu: 1
