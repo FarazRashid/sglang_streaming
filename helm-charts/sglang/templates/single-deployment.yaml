@@ -66,6 +66,22 @@ spec:
           args:
             - "--model-path"
             - "{{ include "sglang.modelPath" . }}"
+            - "--tokenizer-path"
+            - "{{ .Values.single.server.tokenizerPath }}"
+            - "--tokenizer-mode"
+            - "{{ .Values.single.server.tokenizerMode }}"
+            - "--attention-backend"
+            - "{{ .Values.single.server.attentionBackend }}"
+            {{- if .Values.single.server.enableTorchCompile }}
+            - "--enable-torch-compile"
+            {{- end }}
+            - "--cuda-graph-max-bs"
+            - "{{ .Values.single.server.cudaGraphMaxBs }}"
+            - "--stream-interval"
+            - "{{ .Values.single.server.streamInterval }}"
+            {{- if .Values.single.server.enableTokenizerBatchEncode }}
+            - "--enable-tokenizer-batch-encode"
+            {{- end }}
             - "--host"
             - "{{ .Values.single.server.host }}"
             - "--port"

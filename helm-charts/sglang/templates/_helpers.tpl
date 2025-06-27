@@ -69,6 +69,10 @@ Common environment variables
 - name: HF_TOKEN
   value: {{ .Values.global.huggingface.token | quote }}
 {{- end }}
+- name: PYTORCH_FORCE_FLOAT32
+  value: "1"
+- name: TORCHINDUCTOR_CACHE_DIR
+  value: "/root/inductor_root_cache"
 {{- end }}
 
 {{/*
@@ -82,18 +86,21 @@ Common volume mounts
 {{- if .Values.storage.huggingfaceCache.enabled }}
 - name: hf-cache
   mountPath: /root/.cache/huggingface
-  readOnly: true
+{{- end }}
+{{- if .Values.storage.torchCache.enabled }}
+- name: torch-cache
+  mountPath: /root/inductor_root_cache
 {{- end }}
 - name: localtime
   mountPath: /etc/localtime
   readOnly: true
 {{- if eq .Values.storage.model.type "hostPath" }}
 - name: model
-  mountPath: /model-data
+  mountPath: /model
 {{- end }}
 {{- if eq .Values.storage.model.type "pvc" }}
 - name: model
-  mountPath: /model-data
+  mountPath: /model
 {{- end }}
 {{- if .Values.rdma.enabled }}
 - name: ib
@@ -115,7 +122,13 @@ Common volumes
 - name: hf-cache
   hostPath:
     path: {{ .Values.storage.huggingfaceCache.hostPath }}
-    type: Directory
+    type: DirectoryOrCreate
+{{- end }}
+{{- if .Values.storage.torchCache.enabled }}
+- name: torch-cache
+  hostPath:
+    path: {{ .Values.storage.torchCache.hostPath }}
+    type: DirectoryOrCreate
 {{- end }}
 - name: localtime
   hostPath:
@@ -146,7 +159,7 @@ Model path resolution
 {{- if eq .Values.storage.model.type "huggingface" }}
 {{- .Values.global.model.path }}
 {{- else }}
-/model-data
+/model
 {{- end }}
 {{- end }}
 

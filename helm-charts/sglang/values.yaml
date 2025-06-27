@@ -14,9 +14,8 @@ global:
   
   # Model configuration
   model:
-    path: "meta-llama/Llama-3.1-8B-Instruct"
-    # For local models, use hostPath mount
-    # path: "/data/models/your-model"
+    path: "/model"  # Local model path inside container
+    # For HuggingFace models, use format like "meta-llama/Llama-3.1-8B-Instruct"
     trustRemoteCode: true
     
   # HuggingFace token for private models
@@ -45,6 +44,14 @@ single:
     port: 30000
     enableMetrics: true
     metricsPort: 8080
+    # Advanced server options to match Docker command
+    tokenizerPath: "/model"
+    tokenizerMode: "auto"
+    attentionBackend: "flashinfer"
+    enableTorchCompile: true
+    cudaGraphMaxBs: 16
+    streamInterval: 4
+    enableTokenizerBatchEncode: true
     
   # Probes
   livenessProbe:
@@ -127,11 +134,11 @@ storage:
   # Model storage
   model:
     # Options: "hostPath", "pvc", "huggingface"
-    type: "huggingface"
+    type: "hostPath"
     
-    # For hostPath
+    # For hostPath - matches Docker volume mount
     hostPath:
-      path: "/data/models"
+      path: "$(pwd)/Avery_0.2_3_16"  # Replace with actual path
       type: "DirectoryOrCreate"
       
     # For PVC
@@ -145,6 +152,11 @@ storage:
   huggingfaceCache:
     enabled: true
     hostPath: "/root/.cache/huggingface"
+    
+  # Torch cache (matches Docker torch_cache volume)
+  torchCache:
+    enabled: true
+    hostPath: "$(pwd)/torch_cache"  # Replace with actual path
 
 # RDMA/InfiniBand configuration
 rdma:

@@ -1,0 +1,101 @@
+# Example values file that matches the Docker command configuration
+# Replace the paths with absolute paths on your Kubernetes nodes
+
+deploymentMode: "single"
+
+global:
+  image:
+    repository: lmsysorg/sglang
+    tag: latest
+    pullPolicy: Always
+  
+  model:
+    path: "/model"
+    trustRemoteCode: true
+    
+  huggingface:
+    token: "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"
+    
+  resources:
+    gpu: 1
+    memory: "10Gi"
+
+single:
+  enabled: true
+  replicaCount: 1
+  
+  service:
+    type: LoadBalancer
+    port: 30000
+    targetPort: 30000
+    
+  server:
+    host: "0.0.0.0"
+    port: 30000
+    enableMetrics: true
+    metricsPort: 8080
+    # Additional options from Docker command
+    tokenizerPath: "/model"
+    tokenizerMode: "auto"
+    attentionBackend: "flashinfer"
+    enableTorchCompile: true
+    cudaGraphMaxBs: 16
+    streamInterval: 4
+    enableTokenizerBatchEncode: true
+    
+  livenessProbe:
+    enabled: true
+    httpGet:
+      path: /health
+      port: 30000
+    initialDelaySeconds: 30
+    periodSeconds: 10
+    
+  readinessProbe:
+    enabled: true
+    httpGet:
+      path: /health
+      port: 30000
+    initialDelaySeconds: 15
+    periodSeconds: 10
+
+storage:
+  shm:
+    enabled: true
+    size: "10Gi"
+    
+  model:
+    type: "hostPath"
+    hostPath:
+      # Replace with the actual absolute path on your Kubernetes nodes
+      # This should be the equivalent of $(pwd)/Avery_0.2_3_16 from your Docker command
+      path: "/path/to/your/Avery_0.2_3_16"
+      type: "DirectoryOrCreate"
+      
+  huggingfaceCache:
+    enabled: true
+    # Replace with the actual path where you want HF cache on Kubernetes nodes
+    hostPath: "/root/.cache/huggingface"
+    
+  torchCache:
+    enabled: true
+    # Replace with the actual absolute path on your Kubernetes nodes
+    # This should be the equivalent of $(pwd)/torch_cache from your Docker command
+    hostPath: "/path/to/your/torch_cache"
+
+# Runtime class for GPU support
+runtimeClass:
+  enabled: true
+  name: "nvidia"
+
+# Node selector to ensure pods run on GPU nodes
+nodeSelector:
+  accelerator: nvidia-tesla-k80  # Adjust based on your GPU nodes
+
+# Security context
+security:
+  privileged: false
+  securityContext:
+    runAsUser: 0
+    runAsGroup: 0
+    fsGroup: 0
