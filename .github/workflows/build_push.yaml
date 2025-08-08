@@ -42,5 +42,3 @@ jobs:
           tags: |
             ${{ secrets.DOCKERHUB_USERNAME }}/sglang_streaming:latest
             ${{ secrets.DOCKERHUB_USERNAME }}/sglang_streaming:${{ github.sha }}
-          cache-from: type=registry,ref=${{ secrets.DOCKERHUB_USERNAME }}/sglang_streaming:buildcache
-          cache-to: type=registry,ref=${{ secrets.DOCKERHUB_USERNAME }}/sglang_streaming:buildcache,mode=max
