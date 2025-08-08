@@ -37,11 +37,14 @@ RUN python3 -m pip install --upgrade pip setuptools wheel html5lib six \
        else \
          echo "Unsupported CUDA version: $CUDA_VERSION" && exit 1; \
        fi \
-    && python3 -m pip install --no-cache-dir torch --index-url https://download.pytorch.org/whl/cu${CUINDEX} \
-    && cd  sglang_streaming \
-    && python3 -m pip --no-cache-dir install -e "python[${BUILD_TYPE}]" --find-links https://flashinfer.ai/whl/cu${CUINDEX}/torch2.6/flashinfer-python \
+    && python3 -m pip install --no-cache-dir torch==2.7.1 --index-url https://download.pytorch.org/whl/cu${CUINDEX} \
+    && python3 -m pip install --no-cache-dir flashinfer-python==0.2.4.post1 --no-deps \
+       --find-links https://flashinfer.ai/whl/cu${CUINDEX}/torch2.7/flashinfer-python \
+    && cd sglang_streaming \
+    && python3 -m pip install -e "python[${BUILD_TYPE}]" --no-deps \
     && if [ "$CUDA_VERSION" = "12.8.1" ]; then \
          python3 -m pip install nvidia-nccl-cu12==2.26.2.post1 --force-reinstall --no-deps; \
        fi
+
 
 ENV DEBIAN_FRONTEND=interactive
