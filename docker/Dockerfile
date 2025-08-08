@@ -45,3 +45,15 @@ RUN python3 -m pip install --upgrade pip setuptools wheel html5lib six \
        fi
 
 ENV DEBIAN_FRONTEND=interactive
+
+CMD ["python3", "-m", "sglang.launch_server", \
+     "--model-path", "../model", \
+     "--tokenizer-path", "../model", \
+     "--tokenizer-mode", "auto", \
+     "--attention-backend", "flashinfer", \
+     "--enable-torch-compile", \
+     "--cuda-graph-max-bs", "16", \
+     "--stream-interval", "4", \
+     "--enable-tokenizer-batch-encode", \
+     "--host", "0.0.0.0", \
+     "--port", "30000"]
