@@ -350,3 +350,15 @@ RUN set -euxo ; \
 
 # Set workspace directory
 WORKDIR /sgl-workspace/sglang
+
+CMD ["python3", "-m", "sglang.launch_server", \
+     "--model-path", "../../model", \
+     "--tokenizer-path", "../../model", \
+     "--tokenizer-mode", "auto", \
+     "--attention-backend", "flashinfer", \
+     "--enable-torch-compile", \
+     "--cuda-graph-max-bs", "16", \
+     "--stream-interval", "4", \
+     "--enable-tokenizer-batch-encode", \
+     "--host", "0.0.0.0", \
+     "--port", "30000"]

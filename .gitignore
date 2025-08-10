@@ -224,7 +224,6 @@ compile_commands.json
 *.iml
 
 # VSCode
-.vscode
 
 1
 
@@ -235,3 +234,6 @@ compile_commands.json
 Cargo.lock
 
 lmms-eval
+temp_auto_push.bat
+temp_interactive_push.bat
+branch_structure.json
