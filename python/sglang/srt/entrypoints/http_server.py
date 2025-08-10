@@ -382,11 +382,17 @@ async def generate_request(obj: GenerateReqInput, request: Request):
 
         async def stream_results() -> AsyncIterator[bytes]:
             try:
+                previous_text = ""
                 async for out in _global_state.tokenizer_manager.generate_request(
                     obj, request
                 ):
+                    current_text = out.get("text", "")
+                    delta = current_text[len(previous_text):]
+                    previous_text = current_text
+                    out_delta = out.copy()
+                    out_delta["text"] = delta
                     yield b"data: " + orjson.dumps(
-                        out, option=orjson.OPT_NON_STR_KEYS
+                        out_delta, option=orjson.OPT_NON_STR_KEYS
                     ) + b"\n\n"
             except ValueError as e:
                 out = {"error": {"message": str(e)}}
